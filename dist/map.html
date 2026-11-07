@@ -1,1 +1,21 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>周辺地図</title><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""><style>html,body,#map{height:100%;margin:0}body{font:14px sans-serif;color:#234b40;background:#e9eee2}#fallback{position:absolute;inset:30px;line-height:1.8}.leaflet-control-attribution{font-size:9px!important}</style></head><body><p id="fallback">地図を読み込んでいます。表示されない場合は、下の「Googleマップで開く」をご利用ください。</p><div id="map" aria-label="周辺地図"></div><script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script><script src="/map.js"></script></body></html>
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>周辺地図</title>
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
+  <style>
+    html,body,#map{height:100%;margin:0}body{font:14px sans-serif;color:#234b40;background:#e9eee2}
+    #fallback{position:absolute;z-index:1000;inset:20px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;background:#f7f6f0f5;padding:16px;line-height:1.8;border-radius:8px}
+    #fallback p{margin:0 0 12px}button{font:inherit;background:#234b40;color:#fff;border:0;border-radius:5px;padding:10px 18px;cursor:pointer}button:focus-visible{outline:3px solid #b46143;outline-offset:3px}
+    [hidden]{display:none!important}.leaflet-control-attribution{font-size:9px!important}
+  </style>
+</head>
+<body>
+  <div id="fallback" role="status" aria-live="polite"><p id="mapStatus">地図を読み込んでいます…</p><button id="retryMap" type="button" hidden>地図を再読み込み</button></div>
+  <div id="map" aria-label="周辺地図"></div>
+  <script src="/vendor/leaflet/leaflet.js"></script>
+  <script src="/map.js"></script>
+</body>
+</html>
