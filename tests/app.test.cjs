@@ -13,6 +13,7 @@ class Element {
   replaceChildren(...nodes){this._text='';this.children=[...nodes]}
   setAttribute(name,value){this.attrs[name]=String(value)}
   removeAttribute(name){delete this.attrs[name];if(name==='src'||name==='href')delete this[name]}
+  querySelector(){return null}
   addEventListener(){}
   scrollIntoView(){}
 }
@@ -22,9 +23,9 @@ function app(api){
   const get=id=>{if(!nodes.has(id))nodes.set(id,new Element());return nodes.get(id)};
   const mapArea=get('maparea');
   const document={title:'',getElementById:get,createElement:tag=>new Element(tag),createTextNode:text=>new Element('#text',text),body:new Element('body'),querySelectorAll:()=>[],querySelector:selector=>selector==='.maparea'?mapArea:mapArea.children.find(e=>e.className==='mapfallback quiet')};
-  class DOMParser {parseFromString(text){return {body:{textContent:text},querySelectorAll:selector=>selector==='p'?[{textContent:text}]:[]}}}
+  class DOMParser {parseFromString(text){return {body:{textContent:text},querySelectorAll:selector=>selector==='h3,h4,h5,p,li'?[{textContent:text,querySelector(){return null}}]:[]}}}
   const context=vm.createContext({document,DOMParser,localStorage:{getItem(){return null},setItem(){}},URL,URLSearchParams,AbortController,setTimeout,clearTimeout});
-  vm.runInContext(fs.readFileSync('dist/app.js','utf8'),context);
+  for(const file of ['places','features','app'])vm.runInContext(fs.readFileSync('dist/'+file+'.js','utf8'),context);
   context.api=api;
   return {get,run:code=>vm.runInContext(code,context)};
 }
@@ -44,9 +45,11 @@ function consistent(a,title,lat,lon){
   assert.equal(a.get('results').hidden,true);
   assert.equal(a.get('placeTitle').textContent.trim(),title);
   assert.match(a.get('historyContent').textContent,new RegExp(title+'の歴史'));
-  assert.equal(a.get('overviewContent').textContent,'土地のあらまし'+title+'の概要');
+  assert.match(a.get('overviewContent').textContent,new RegExp(title+'の概要'));
   assert.match(a.get('sources').textContent,new RegExp('Wikipedia｜'+title));
-  assert.equal(a.get('mapFrame').src,'/map.html?lat='+lat+'&lon='+lon+'&zoom=12');
+  assert.equal(new URL(a.get('mapFrame').src).searchParams.get('q'),lat+','+lon);
+  assert.doesNotMatch(a.get('placeLinks').textContent,/Facebook|Instagram/);
+  assert.doesNotMatch(a.get('exploreLinks').textContent,/ローマ|長野/);
   assert.equal(new URL(a.get('googleLink').href).searchParams.get('query'),lat+','+lon);
   assert.equal(new URL(a.get('routeLink').href).searchParams.get('destination'),lat+','+lon);
 }
@@ -80,4 +83,22 @@ test('A late city reply cannot overwrite a newer selection',async()=>{
 test('A failed article load leaves no previous city content visible',async()=>{
   const a=app(()=>Promise.reject(Error('offline')));await a.run('loadPlace("パリ")');
   assert.equal(a.get('place').hidden,true);assert.equal(a.get('mapFrame').src,undefined);assert.match(a.get('status').textContent,/資料を取得できません/);
+});
+test('Chronology sorts centuries by their beginning and excludes heading-only dates',()=>{
+  const a=app(()=>Promise.reject(Error('offline')));
+  assert.equal(a.run('dateKey("14世紀初頭のパリの人口についての記録").key'),1301);
+  assert.equal(a.run('dateKey("紀元前753年 建国伝承についての記録").key'),-753);
+  assert.equal(a.run('dateKey("19世紀")'),null);
+  assert.deepEqual(JSON.parse(a.run('JSON.stringify(timelineFromHistory(["1594年、首都を回復。","16世紀後半、宗教戦争。","14世紀初頭の人口。","1328年、王朝の断絶。"]).map(x=>x[0]))')),['14世紀','1328年','16世紀','1594年']);
+});
+test('A stale enrichment response cannot replace the newer city or its related sections',async()=>{
+  const gate=deferred();const a=app(p=>p.generator==='geosearch'&&p.ggscoord.startsWith('48.')?gate.promise:Promise.resolve(reply(p)));
+  const old=a.run('loadPlace("パリ")');
+  // Drain the already-resolved article and history requests until enrichment awaits.
+  for(let i=0;i<12;i++)await Promise.resolve();
+  await a.run('loadPlace("長野市")');gate.resolve({query:{pages:[]}});await old;
+  assert.match(a.get('placeTitle').textContent,/長野市/);
+  assert.match(a.get('landmarks').textContent,/善光寺/);
+  assert.doesNotMatch(a.get('placeLinks').textContent,/Facebook|Instagram/);
+  assert.equal(new URL(a.get('mapFrame').src).searchParams.get('q'),'36.6486,138.1948');
 });
